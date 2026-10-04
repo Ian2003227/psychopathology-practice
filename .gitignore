@@ -1,0 +1,7 @@
+# 明文題庫（改寫自有版權的教科書內容與答案）絕對不能進 git
+data-raw/
+data/bank.json
+*.pdf
+
+.DS_Store
+node_modules/

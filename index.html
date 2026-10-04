@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>精神病理個案練習</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div id="loginPanel" class="panel">
+  <h1>精神病理個案練習</h1>
+  <p class="muted small">讀個案 → 下診斷與明細 → 列鑑別 → 看解析與複習卡。</p>
+  <label>通關密語</label>
+  <input id="pwInput" type="password" placeholder="輸入密語" autocomplete="off" />
+  <label>選擇使用者</label>
+  <select id="userSelect"></select>
+  <button id="loginBtn">進入</button>
+  <div id="loginError"></div>
+</div>
+
+<div id="appRoot" class="hidden">
+  <header class="topbar">
+    <div class="title">精神病理個案練習</div>
+    <nav class="tabs">
+      <button data-view="practice" class="active">練習</button>
+      <button data-view="review">訂正本</button>
+      <button data-view="dashboard">儀表板</button>
+      <button data-view="reference">速查</button>
+    </nav>
+    <div class="user-badge" id="userBadge"></div>
+  </header>
+
+  <div class="wrap">
+    <section id="view-practice">
+      <div class="toolbar">
+        <label>題型
+          <select id="typeFilter">
+            <option value="case">個案診斷</option>
+            <option value="duel">鑑別對決</option>
+            <option value="all">全部</option>
+          </select>
+        </label>
+        <label>順序
+          <select id="orderMode">
+            <option value="random">隨機</option>
+            <option value="code">依編號</option>
+            <option value="unanswered">尚未作答</option>
+            <option value="wrong">只出錯題</option>
+          </select>
+        </label>
+        <label title="選特定範圍等於先告訴你診斷類別，適合針對性複習">範圍
+          <select id="chapterFilter"></select>
+        </label>
+        <button id="overviewBtn">總覽</button>
+        <span class="progress-text" id="progressText"></span>
+      </div>
+      <div class="panel hidden" id="overviewPanel"></div>
+      <div class="panel" id="itemPanel"></div>
+    </section>
+
+    <section id="view-review" class="hidden">
+      <div class="panel" id="reviewPanel"></div>
+    </section>
+
+    <section id="view-dashboard" class="hidden">
+      <div class="panel" id="dashboardPanel"></div>
+    </section>
+
+    <section id="view-reference" class="hidden">
+      <div class="panel" id="referencePanel"></div>
+    </section>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/crypto.js"></script>
+<script src="js/grade.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
