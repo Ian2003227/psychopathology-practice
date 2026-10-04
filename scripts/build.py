@@ -176,6 +176,14 @@ def main():
     tax = load("taxonomy.json")
     dx_index = expand_taxonomy(tax, problems)
     dis = load("disorders.json")
+    for path in sorted(glob.glob(os.path.join(RAW, "cards_*.json"))):
+        with open(path, encoding="utf-8") as f:
+            extra = json.load(f)
+        for key in ("checklists", "cards"):
+            for k, v in extra.get(key, {}).items():
+                if k in dis[key]:
+                    problems.append(f"{os.path.basename(path)}: duplicate {key[:-1]} '{k}'")
+                dis[key][k] = v
     cases = []
     for path in sorted(glob.glob(os.path.join(RAW, "cases_*.json"))):
         with open(path, encoding="utf-8") as f:
@@ -183,6 +191,9 @@ def main():
         print(f"{os.path.basename(path)}: {len(arr)} cases")
         cases.extend(arr)
     duels = load("duels.json")
+    for path in sorted(glob.glob(os.path.join(RAW, "duels_*.json"))):
+        with open(path, encoding="utf-8") as f:
+            duels.extend(json.load(f))
     print(f"duels.json: {len(duels)} duels")
 
     validate_cases(cases, dx_index, dis["checklists"], problems)
