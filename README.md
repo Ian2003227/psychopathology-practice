@@ -2,7 +2,7 @@
 
 給郭、彥、慧、言四人使用的精神病理練習網站：讀個案 → 下診斷與明細 → 列鑑別 → 看解析、準則核對與複習卡。與羅夏克編碼練習平台是**各自獨立**的 repo，通關密語相同。
 
-作答紀錄存在各自瀏覽器（依登入名字分開），下次回來會接著上次的位置；「訂正本」列出所有答錯的題目；換裝置時可在「儀表板」下載／匯入進度備份。
+作答紀錄依登入名字分開，下次回來會接著上次的位置；「訂正本」列出所有答錯的題目。設定 `js/config.js` 的 `SYNC_URL`（Google Apps Script，程式在 `gas/Code.gs`）後，紀錄會同步到 Google Sheet，電腦和手機共用同一份進度；沒設定時只存在本機瀏覽器，可在「儀表板」下載／匯入備份。
 
 題庫依據：
 - First & Skodol《Learning DSM-5-TR by Case Example》：個案敘述（中文精簡改寫）、標準答案、解析
@@ -28,6 +28,7 @@ data-raw/                   明文題庫，gitignore，不進 git
   cases_*.json              個案診斷題（每章一檔）
   duels.json                鑑別對決題
 scripts/build.py            驗證交叉引用 → 加密輸出 data/bank.enc
+gas/Code.gs                 雲端同步後端（Google Apps Script，一人一題一列）
 ```
 
 ## 重新產生題庫（改了 data-raw 之後）

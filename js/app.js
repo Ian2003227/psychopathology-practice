@@ -32,6 +32,7 @@ function saveAttempt(item, answer, result) {
   const prev = map[item.id];
   map[item.id] = { count: (prev ? prev.count : 0) + 1, at: Date.now(), answer, result, allCorrect: !!result.allCorrect };
   store.set(K.attempts(), map);
+  window.PsySync.push(item.id, map[item.id], map[item.id].at);
 }
 function statusOf(id) {
   const a = attempts()[id];
@@ -109,11 +110,46 @@ async function doLogin() {
     for (const it of S.items) S.byId[it.id] = it;
     document.getElementById("loginPanel").classList.add("hidden");
     document.getElementById("appRoot").classList.remove("hidden");
-    document.getElementById("userBadge").textContent = "使用者：" + user;
+    S.preSync = { last: store.get(K.last(), null), lastAt: store.get(K.last() + "_at", 0) };
+    S.syncReady = !window.PsySync.enabled();
     initApp();
+    startSync();
   } catch (e) {
     err.textContent = String(e.message).includes("WRONG_PASSWORD") ? "密語錯誤，請再試一次" : "發生錯誤：" + e.message;
   }
+}
+
+// ---------- cloud sync ----------
+const SYNC_LABEL = { off: "", syncing: "同步中…", ok: "☁️ 已同步", offline: "⚠️ 離線，稍後自動同步" };
+function renderUserBadge() {
+  const s = window.PsySync.state;
+  document.getElementById("userBadge").textContent = "使用者：" + S.user + (SYNC_LABEL[s] ? "　" + SYNC_LABEL[s] : "");
+}
+
+async function startSync() {
+  window.PsySync.onChange(renderUserBadge);
+  window.PsySync.start(S.user);
+  renderUserBadge();
+  if (!window.PsySync.enabled()) return;
+  const merged = await window.PsySync.pull({
+    attempts: attempts(),
+    flags: store.get(K.flags(), []),
+    last: S.preSync.last,
+    lastAt: S.preSync.lastAt,
+  });
+  S.syncReady = true;
+  if (!merged) return;
+  store.set(K.attempts(), merged.attempts);
+  store.set(K.flags(), merged.flags);
+  const prevItem = S.order[S.pos];
+  if (merged.last && S.byId[merged.last] && merged.last !== prevItem && !(S.draft && S.draft.submitted)) {
+    store.set(K.last(), merged.last);
+    if (!S.order.includes(merged.last)) rebuildOrder(false);
+    if (S.order.includes(merged.last)) S.pos = S.order.indexOf(merged.last);
+  }
+  renderItem();
+  const done = Object.keys(merged.attempts).filter(id => S.byId[id]).length;
+  if (done) toast(`已從雲端同步，共 ${done} 題的作答紀錄`);
 }
 
 // ---------- app shell ----------
@@ -249,7 +285,11 @@ function renderItem() {
     return;
   }
   if (!S.draft || S.draft.itemId !== item.id) S.draft = freshDraft(item);
-  store.set(K.last(), item.id);
+  if (S.syncReady && store.get(K.last(), null) !== item.id) {
+    store.set(K.last(), item.id);
+    store.set(K.last() + "_at", Date.now());
+    window.PsySync.pushLast(item.id);
+  }
   panel.innerHTML = item.type === "case" ? caseHtml(item) : duelHtml(item);
   renderOverview();
 }
@@ -424,6 +464,7 @@ function doFlag(item) {
   const flags = store.get(K.flags(), []);
   flags.push({ item_id: item.id, note, at: Date.now() });
   store.set(K.flags(), flags);
+  window.PsySync.push("__flags__", flags);
   toast("已標記，可以在「訂正本」找到");
 }
 
@@ -726,7 +767,7 @@ function renderDashboard() {
     <h3>最常漏掉的「必須考慮」鑑別</h3>
     ${missList ? `<ul class="tight">${missList}</ul>` : `<p class="muted small">還沒有資料。</p>`}
     <h3>進度備份</h3>
-    <p class="small muted">作答紀錄存在這台裝置的瀏覽器裡，下次用同一個瀏覽器、選同一個名字登入就會接著做。換電腦或換瀏覽器前，先下載備份，再到新的地方匯入。</p>
+    <p class="small muted">${window.PsySync.enabled() ? "已開啟雲端同步：作答紀錄會自動存到 Google Sheet，電腦和手機用同一個名字登入就會看到同樣的進度。這裡的備份是額外的保險。" : "作答紀錄存在這台裝置的瀏覽器裡，下次用同一個瀏覽器、選同一個名字登入就會接著做。換電腦或換瀏覽器前，先下載備份，再到新的地方匯入。"}</p>
     <div class="action-row"><button class="btn-secondary" data-backup="export">下載進度備份</button>
       <label class="btn-secondary" style="padding:10px 18px;border-radius:8px;cursor:pointer">匯入備份<input type="file" accept=".json,application/json" id="importFile" hidden /></label></div>`;
 }
@@ -796,12 +837,13 @@ function importBackup(input) {
       let added = 0;
       for (const [id, rec] of Object.entries(data.attempts)) {
         if (!S.byId[id]) continue;
-        if (!mine[id] || (rec.at || 0) > (mine[id].at || 0)) { mine[id] = rec; added++; }
+        if (!mine[id] || (rec.at || 0) > (mine[id].at || 0)) { mine[id] = rec; added++; window.PsySync.push(id, rec, rec.at); }
       }
       store.set(K.attempts(), mine);
       const flags = store.get(K.flags(), []);
       for (const f of data.flags || []) if (!flags.some(x => x.item_id === f.item_id && x.at === f.at)) flags.push(f);
       store.set(K.flags(), flags);
+      window.PsySync.push("__flags__", flags);
       if (data.last && S.byId[data.last]) store.set(K.last(), data.last);
       toast(`已匯入，更新了 ${added} 題的紀錄`);
       renderDashboard();
