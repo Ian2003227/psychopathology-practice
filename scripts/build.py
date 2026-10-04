@@ -164,13 +164,29 @@ def encrypt(plain, password):
     return {"salt": b64(salt), "iv": b64(iv), "iterations": ITERATIONS, "ciphertext": b64(ct)}
 
 
+def decrypts(path, password):
+    with open(path, encoding="utf-8") as f:
+        env = json.load(f)
+    d = base64.b64decode
+    key = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=d(env["salt"]), iterations=env["iterations"]).derive(password.encode())
+    try:
+        AESGCM(key).decrypt(d(env["iv"]), d(env["ciphertext"]), None)
+        return True
+    except Exception:
+        return False
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--password", default=os.environ.get("PSY_PASSWORD"))
     ap.add_argument("--allow-problems", action="store_true")
+    ap.add_argument("--change-password", action="store_true", help="允許用和現有 bank.enc 不同的通關密語重新加密")
     args = ap.parse_args()
     if not args.password:
         sys.exit("請用 --password 或環境變數 PSY_PASSWORD 提供通關密語")
+    existing = os.path.join(OUT, "bank.enc")
+    if os.path.exists(existing) and not args.change_password and not decrypts(existing, args.password):
+        sys.exit("通關密語和現有的 data/bank.enc 不同，已中止（若確定要換密語，加 --change-password）")
 
     problems = []
     tax = load("taxonomy.json")
