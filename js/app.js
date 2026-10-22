@@ -80,55 +80,145 @@ function specText(dxId, spec) {
 }
 
 // ---------- login ----------
-function initLogin() {
-  const sel = document.getElementById("userSelect");
-  sel.innerHTML = window.PsyConfig.USERS.map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join("");
-  document.getElementById("loginBtn").addEventListener("click", doLogin);
-  document.getElementById("pwInput").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+// Cloud mode (SYNC_URL set): self-registration with nickname + password; the backend hands back the
+// access code that decrypts the bank. Local mode: nickname + access code, progress stays in this browser.
+const SESSION_KEY = "psy_session";
+const NOTICE_KEY = "psy_notice";
+
+function showAuthForm(name) {
+  document.querySelectorAll("#authCard .auth-form").forEach(f => f.classList.toggle("hidden", f.dataset.form !== name));
+  document.querySelectorAll(".auth-tabs [data-auth]").forEach(b => b.classList.toggle("active", b.dataset.auth === name));
+  document.getElementById("loginError").textContent = "";
+  const first = document.querySelector(`#authCard [data-form="${name}"] input`);
+  if (first && window.matchMedia("(min-width: 900px)").matches) first.focus();
 }
 
-async function doLogin() {
-  const pw = document.getElementById("pwInput").value;
-  const user = document.getElementById("userSelect").value;
-  const err = document.getElementById("loginError");
-  err.textContent = "";
-  if (!pw) { err.textContent = "請輸入密語"; return; }
+function initLogin() {
+  const cloud = window.PsySync.enabled();
+  document.querySelector(".auth-tabs").classList.toggle("hidden", !cloud);
+  document.querySelector(".auth-note").classList.toggle("hidden", !cloud);
+  document.getElementById("authCard").addEventListener("click", e => {
+    const b = e.target.closest("[data-auth]");
+    if (b) showAuthForm(b.dataset.auth);
+  });
+  document.getElementById("loginForm").addEventListener("submit", e => { e.preventDefault(); doLogin(e.target); });
+  document.getElementById("registerForm").addEventListener("submit", e => { e.preventDefault(); doRegister(e.target); });
+  document.getElementById("localForm").addEventListener("submit", e => { e.preventDefault(); doLocal(e.target); });
+  document.getElementById("logoutBtn").addEventListener("click", logout);
+  window.PsySync.onAuthLost(() => {
+    store.set(NOTICE_KEY, "登入已失效（可能在別的裝置改了密碼），請重新登入");
+    logout();
+  });
+
+  showAuthForm(cloud ? "login" : "local");
+  const notice = store.get(NOTICE_KEY, "");
+  if (notice) {
+    document.getElementById("loginError").textContent = notice;
+    try { localStorage.removeItem(NOTICE_KEY); } catch { /* storage blocked */ }
+  }
+  // Resume the previous session on this device without asking again.
+  const sess = store.get(SESSION_KEY, null);
+  if (sess && sess.user && sess.code && !!sess.token === cloud) {
+    document.body.classList.add("resuming");
+    enterApp(sess, null).finally(() => document.body.classList.remove("resuming"));
+  }
+}
+
+async function withBusy(form, label, fn) {
+  const btn = form.querySelector("button[type=submit]");
+  const text = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = label;
+  document.getElementById("loginError").textContent = "";
+  try { await fn(); } finally { btn.disabled = false; btn.textContent = text; }
+}
+
+function authError(msg) { document.getElementById("loginError").textContent = msg; }
+
+function doLogin(form) {
+  const nick = document.getElementById("loginNick").value.trim();
+  const pw = document.getElementById("loginPw").value;
+  if (!nick || !pw) return authError("請輸入暱稱和密碼");
+  return withBusy(form, "登入中…", async () => {
+    const res = await window.PsySync.login(nick, pw);
+    if (!res.ok) return authError(res.error || "登入失敗");
+    await enterApp({ user: res.user, token: res.token, code: res.accessCode }, form);
+  });
+}
+
+function doRegister(form) {
+  const nick = document.getElementById("regNick").value.trim();
+  const pw = document.getElementById("regPw").value;
+  const code = document.getElementById("regCode").value.trim();
+  if (!nick || !pw || !code) return authError("每一欄都要填");
+  if (nick.length > 20) return authError("暱稱最多 20 字");
+  if (nick.startsWith("__")) return authError("暱稱不能以 __ 開頭");
+  if (pw.length < 4) return authError("密碼至少 4 個字元");
+  if (pw !== document.getElementById("regPw2").value) return authError("兩次輸入的密碼不一樣");
+  return withBusy(form, "註冊中…", async () => {
+    const res = await window.PsySync.register(nick, pw, code);
+    if (!res.ok) return authError(res.error || "註冊失敗");
+    await enterApp({ user: res.user, token: res.token, code: res.accessCode }, form);
+    toast(`註冊成功，歡迎 ${res.user}！`);
+  });
+}
+
+function doLocal(form) {
+  const nick = document.getElementById("localNick").value.trim();
+  const code = document.getElementById("localCode").value.trim();
+  if (!nick || !code) return authError("請輸入暱稱和通關密語");
+  return withBusy(form, "解鎖題庫中…", () => enterApp({ user: nick, token: null, code }, form));
+}
+
+function logout() {
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* storage blocked */ }
+  location.reload();
+}
+
+// form is null when resuming a saved session: failures then just fall back to the login page.
+async function enterApp(sess, form) {
+  let bank;
   try {
     const res = await fetch("data/bank.enc", { cache: "no-store" });
     if (!res.ok) throw new Error("bank.enc 讀取失敗（" + res.status + "）");
-    const bank = await window.PsyCrypto.decryptEnvelope(pw, await res.json());
-    S.bank = bank;
-    S.user = user;
-    for (const c of bank.taxonomy) {
-      S.cat[c.id] = c;
-      for (const d of c.diagnoses) S.dx[d.id] = d;
-    }
-    S.items = [
-      ...bank.cases.map(c => ({ ...c, type: "case" })),
-      ...bank.duels.map(d => ({ ...d, type: "duel" })),
-    ];
-    for (const it of S.items) S.byId[it.id] = it;
-    document.getElementById("loginPanel").classList.add("hidden");
-    document.getElementById("appRoot").classList.remove("hidden");
-    S.preSync = { last: store.get(K.last(), null), lastAt: store.get(K.last() + "_at", 0) };
-    S.syncReady = !window.PsySync.enabled();
-    initApp();
-    startSync();
+    bank = await window.PsyCrypto.decryptEnvelope(sess.code, await res.json());
   } catch (e) {
-    err.textContent = String(e.message).includes("WRONG_PASSWORD") ? "密語錯誤，請再試一次" : "發生錯誤：" + e.message;
+    try { localStorage.removeItem(SESSION_KEY); } catch { /* storage blocked */ }
+    if (!form) return;
+    if (!String(e.message).includes("WRONG_PASSWORD")) return authError("發生錯誤：" + e.message);
+    return authError(sess.token ? "題庫解不開：Google Sheet 裡設定的通關密語和題庫不一致，請通知管理的學長姐" : "通關密語錯誤，請再試一次");
   }
+  store.set(SESSION_KEY, sess);
+  S.bank = bank;
+  S.user = sess.user;
+  for (const c of bank.taxonomy) {
+    S.cat[c.id] = c;
+    for (const d of c.diagnoses) S.dx[d.id] = d;
+  }
+  S.items = [
+    ...bank.cases.map(c => ({ ...c, type: "case" })),
+    ...bank.duels.map(d => ({ ...d, type: "duel" })),
+  ];
+  for (const it of S.items) S.byId[it.id] = it;
+  document.getElementById("landing").classList.add("hidden");
+  document.getElementById("appRoot").classList.remove("hidden");
+  window.scrollTo(0, 0);
+  S.preSync = { last: store.get(K.last(), null), lastAt: store.get(K.last() + "_at", 0) };
+  S.syncReady = !window.PsySync.enabled();
+  initApp();
+  startSync(sess.token);
 }
 
 // ---------- cloud sync ----------
 const SYNC_LABEL = { off: "", syncing: "同步中…", ok: "☁️ 已同步", offline: "⚠️ 離線，稍後自動同步" };
 function renderUserBadge() {
   const s = window.PsySync.state;
-  document.getElementById("userBadge").textContent = "使用者：" + S.user + (SYNC_LABEL[s] ? "　" + SYNC_LABEL[s] : "");
+  document.getElementById("userBadge").textContent = S.user + (SYNC_LABEL[s] ? "　" + SYNC_LABEL[s] : "");
 }
 
-async function startSync() {
+async function startSync(token) {
   window.PsySync.onChange(renderUserBadge);
-  window.PsySync.start(S.user);
+  window.PsySync.start(S.user, token);
   renderUserBadge();
   if (!window.PsySync.enabled()) return;
   const merged = await window.PsySync.pull({
@@ -767,9 +857,32 @@ function renderDashboard() {
     <h3>最常漏掉的「必須考慮」鑑別</h3>
     ${missList ? `<ul class="tight">${missList}</ul>` : `<p class="muted small">還沒有資料。</p>`}
     <h3>進度備份</h3>
-    <p class="small muted">${window.PsySync.enabled() ? "已開啟雲端同步：作答紀錄會自動存到 Google Sheet，電腦和手機用同一個名字登入就會看到同樣的進度。這裡的備份是額外的保險。" : "作答紀錄存在這台裝置的瀏覽器裡，下次用同一個瀏覽器、選同一個名字登入就會接著做。換電腦或換瀏覽器前，先下載備份，再到新的地方匯入。"}</p>
+    <p class="small muted">${window.PsySync.enabled() ? "已開啟雲端同步：作答紀錄會自動存到 Google Sheet，電腦和手機用同一個暱稱登入就會看到同樣的進度。這裡的備份是額外的保險。" : "作答紀錄存在這台裝置的瀏覽器裡，下次用同一個瀏覽器、輸入同一個暱稱就會接著做。換電腦或換瀏覽器前，先下載備份，再到新的地方匯入。"}</p>
     <div class="action-row"><button class="btn-secondary" data-backup="export">下載進度備份</button>
-      <label class="btn-secondary" style="padding:10px 18px;border-radius:8px;cursor:pointer">匯入備份<input type="file" accept=".json,application/json" id="importFile" hidden /></label></div>`;
+      <label class="btn-secondary" style="padding:10px 18px;border-radius:8px;cursor:pointer">匯入備份<input type="file" accept=".json,application/json" id="importFile" hidden /></label></div>
+    ${window.PsySync.enabled() ? `<h3>帳號</h3>
+    <p class="small muted">改密碼後，其他裝置會被登出，需要用新密碼重新登入。</p>
+    <div class="pw-form">
+      <input type="password" id="pwOld" placeholder="目前的密碼" autocomplete="current-password" />
+      <input type="password" id="pwNew" placeholder="新密碼（至少 4 個字元）" autocomplete="new-password" />
+      <button class="btn-secondary" data-account="pw">更改密碼</button>
+    </div>` : ""}`;
+}
+
+async function changePassword(btn) {
+  const oldPw = document.getElementById("pwOld").value;
+  const newPw = document.getElementById("pwNew").value;
+  if (!oldPw || newPw.length < 4) return toast("請輸入目前的密碼，新密碼至少 4 個字元");
+  btn.disabled = true;
+  try {
+    const res = await window.PsySync.changePassword(oldPw, newPw);
+    if (!res.ok) return toast(res.error === "auth" ? "登入已失效，請重新登入" : res.error || "更改失敗");
+    store.set(SESSION_KEY, { ...store.get(SESSION_KEY, {}), token: res.token });
+    document.getElementById("pwOld").value = document.getElementById("pwNew").value = "";
+    toast("密碼已更新");
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function confusionHtml(results) {
@@ -809,6 +922,8 @@ function onDashClick(e) {
     return;
   }
   if (e.target.closest("[data-backup='export']")) exportBackup();
+  const pwBtn = e.target.closest("[data-account='pw']");
+  if (pwBtn) changePassword(pwBtn);
 }
 
 // ---------- backup ----------

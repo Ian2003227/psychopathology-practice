@@ -4,31 +4,125 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>精神病理個案練習</title>
+<meta name="description" content="臺大心理學系臨床心理學組的精神病理個案診斷與鑑別練習" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;600&display=swap" />
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
 
-<div id="loginPanel" class="panel">
-  <h1>精神病理個案練習</h1>
-  <p class="muted small">讀個案 → 下診斷與明細 → 列鑑別 → 看解析與複習卡。</p>
-  <label>通關密語</label>
-  <input id="pwInput" type="password" placeholder="輸入密語" autocomplete="off" />
-  <label>選擇使用者</label>
-  <select id="userSelect"></select>
-  <button id="loginBtn">進入</button>
-  <div id="loginError"></div>
+<div id="landing">
+  <header class="site-nav">
+    <div class="brand"><span class="mark" aria-hidden="true">Ψ</span><span>臺大臨床組<span class="brand-sep">·</span>精神病理練習</span></div>
+    <span class="nav-note">學長姐整理｜給學弟妹</span>
+  </header>
+
+  <main class="hero">
+    <section class="hero-copy">
+      <span class="eyebrow">NTU Clinical Psychology</span>
+      <h1>精神病理<br />個案練習</h1>
+      <p class="lead">臺大心理學系臨床心理學組的精神病理練習平台。用 DSM-5-TR 的真實個案練習下診斷、列鑑別，再對照書中解析與複習卡。</p>
+      <ol class="flow">
+        <li><b>讀個案</b><span>中文精簡改寫的臨床敘述</span></li>
+        <li><b>下診斷</b><span>大類別 → 診斷 → 明細與共病</span></li>
+        <li><b>列鑑別</b><span>物質／身體病況每案必查</span></li>
+        <li><b>看解析</b><span>評分、準則核對、複習卡</span></li>
+      </ol>
+    </section>
+
+    <section class="auth-card" id="authCard">
+      <div class="auth-tabs" role="tablist">
+        <button type="button" role="tab" data-auth="login" class="active">登入</button>
+        <button type="button" role="tab" data-auth="register">註冊</button>
+      </div>
+
+      <form id="loginForm" class="auth-form" data-form="login" autocomplete="on">
+        <h2>歡迎回來</h2>
+        <p class="form-sub">用你註冊的暱稱和密碼登入，進度會接著上次的位置。</p>
+        <label for="loginNick">暱稱</label>
+        <input id="loginNick" name="username" autocomplete="username" maxlength="20" required />
+        <label for="loginPw">密碼</label>
+        <input id="loginPw" name="password" type="password" autocomplete="current-password" required />
+        <button type="submit" class="btn-cta">登入</button>
+        <p class="form-foot">還沒有帳號？<button type="button" class="linkbtn" data-auth="register">先註冊</button></p>
+      </form>
+
+      <form id="registerForm" class="auth-form hidden" data-form="register" autocomplete="on">
+        <h2>建立帳號</h2>
+        <p class="form-sub">暱稱自己取，之後換電腦或手機都用它登入。</p>
+        <label for="regNick">暱稱 <small>1–20 字</small></label>
+        <input id="regNick" name="username" autocomplete="username" maxlength="20" required />
+        <label for="regPw">密碼 <small>至少 4 個字元</small></label>
+        <input id="regPw" name="new-password" type="password" autocomplete="new-password" minlength="4" required />
+        <label for="regPw2">再輸入一次密碼</label>
+        <input id="regPw2" type="password" autocomplete="new-password" minlength="4" required />
+        <label for="regCode">通關密語 <small>向學長姐索取</small></label>
+        <input id="regCode" type="password" inputmode="numeric" autocomplete="off" required />
+        <button type="submit" class="btn-cta">註冊並開始練習</button>
+        <p class="form-foot">已經有帳號？<button type="button" class="linkbtn" data-auth="login">直接登入</button></p>
+      </form>
+
+      <form id="localForm" class="auth-form hidden" data-form="local">
+        <h2>開始練習</h2>
+        <p class="form-sub">本機模式：紀錄只存在這台裝置的瀏覽器。</p>
+        <label for="localNick">暱稱</label>
+        <input id="localNick" maxlength="20" required />
+        <label for="localCode">通關密語</label>
+        <input id="localCode" type="password" inputmode="numeric" autocomplete="off" required />
+        <button type="submit" class="btn-cta">進入</button>
+      </form>
+
+      <div id="loginError" role="alert"></div>
+      <p class="auth-note">忘記密碼請找管理的學長姐重設。</p>
+    </section>
+  </main>
+
+  <section class="features">
+    <article class="feature">
+      <span class="feature-tag">個案診斷</span>
+      <h3>從敘述走到診斷</h3>
+      <p>先點類別再點診斷，選明細、加共病、勾鑑別。送出後逐列評分：綠＝正確、黃＝可接受、紅＝錯誤或遺漏。</p>
+    </article>
+    <article class="feature">
+      <span class="feature-tag">鑑別對決</span>
+      <h3>兩個很像的診斷</h3>
+      <p>二選一之後，再挑出真正決定性的區辨點，練習 First 鑑別手冊裡的思考步驟。</p>
+    </article>
+    <article class="feature">
+      <span class="feature-tag">訂正本・速查</span>
+      <h3>錯過的題目會回來</h3>
+      <p>答錯的題目自動收進訂正本；速查頁有每個診斷的複習卡、準則核對表與鑑別表。</p>
+    </article>
+  </section>
+
+  <section class="source-band">
+    <div class="source-copy">
+      <h2>題庫依據</h2>
+      <p>個案改寫自教科書並加密保存；需要通關密語才能解開。診斷名稱採台灣精神醫學會 DSM-5 譯名。</p>
+    </div>
+    <ul class="source-list">
+      <li><span>個案・解析</span>First &amp; Skodol《Learning DSM-5-TR by Case Example》</li>
+      <li><span>鑑別・複習卡</span>First《DSM-5-TR Handbook of Differential Diagnosis》</li>
+    </ul>
+  </section>
+
+  <footer class="site-foot">
+    <span class="brand"><span class="mark" aria-hidden="true">Ψ</span>臺大臨床組・精神病理練習</span>
+    <span>僅供課業練習使用，請勿外流題目內容。</span>
+  </footer>
 </div>
 
 <div id="appRoot" class="hidden">
   <header class="topbar">
-    <div class="title">精神病理個案練習</div>
+    <div class="title"><span class="mark" aria-hidden="true">Ψ</span>精神病理個案練習</div>
     <nav class="tabs">
       <button data-view="practice" class="active">練習</button>
       <button data-view="review">訂正本</button>
       <button data-view="dashboard">儀表板</button>
       <button data-view="reference">速查</button>
     </nav>
-    <div class="user-badge" id="userBadge"></div>
+    <div class="user-box"><span class="user-badge" id="userBadge"></span><button type="button" class="linkbtn" id="logoutBtn">登出</button></div>
   </header>
 
   <div class="wrap">
