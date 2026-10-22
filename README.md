@@ -1,8 +1,23 @@
 # 精神病理個案練習平台
 
-給郭、彥、慧、言四人使用的精神病理練習網站：讀個案 → 下診斷與明細 → 列鑑別 → 看解析、準則核對與複習卡。與羅夏克編碼練習平台是**各自獨立**的 repo，通關密語相同。
+臺大心理系臨床組的精神病理練習網站，開放給學弟妹自行註冊使用：讀個案 → 下診斷與明細 → 列鑑別 → 看解析、準則核對與複習卡。
 
-作答紀錄依登入名字分開，下次回來會接著上次的位置；「訂正本」列出所有答錯的題目。設定 `js/config.js` 的 `SYNC_URL`（Google Apps Script，程式在 `gas/Code.gs`）後，紀錄會同步到 Google Sheet，電腦和手機共用同一份進度；沒設定時只存在本機瀏覽器，可在「儀表板」下載／匯入備份。
+- **註冊**：自己取暱稱（1–20 字，不可重複）＋密碼（至少 4 字元）＋通關密語。
+- **登入**：暱稱＋密碼即可；伺服器驗證後才把通關密語交給瀏覽器解開題庫。同一台裝置下次打開會自動登入，右上角可登出。
+- 作答紀錄依暱稱分開存在 Google Sheet，電腦和手機共用同一份進度；「訂正本」列出所有答錯的題目；「儀表板」可改密碼、下載／匯入備份。
+- `js/config.js` 的 `SYNC_URL` 留空時是**本機模式**：輸入暱稱＋通關密語就能練習，紀錄只存在該瀏覽器。
+
+## 帳號後端（Google Sheet）設定
+
+1. 開一份新的 Google Sheet → 擴充功能 → Apps Script → 把 `gas/Code.gs` 整份貼上 → 儲存。
+2. 在編輯器上方選 `setup` 執行一次（第一次會要求授權），Sheet 裡會出現三個工作表：
+   - `settings`：在 `access_code` 那列的 value 填入通關密語（必須和題庫加密用的密語相同）。`registration_open` 填 `FALSE` 可暫停新註冊。
+   - `users`：每位註冊者一列（密碼只存加鹽雜湊）。**忘記密碼**：刪掉那一列，請對方用同一個暱稱重新註冊，舊進度會接回來。
+   - `progress`：一人一題一列的作答紀錄。
+3. 部署 → 新增部署作業 → 類型「網頁應用程式」，執行身分「我」，存取權「所有人」→ 複製 `/exec` 網址貼到 `js/config.js` 的 `SYNC_URL`。
+4. 之後改了 `Code.gs`：部署 → 管理部署作業 → 編輯 → 版本選「新版本」，網址不變。
+
+通關密語只放在 Sheet 的 `settings`，不要寫進 repo（repo 是公開的）。登入連續錯 5 次會鎖 5 分鐘。
 
 題庫依據：
 - First & Skodol《Learning DSM-5-TR by Case Example》：個案敘述（中文精簡改寫）、標準答案、解析
@@ -28,7 +43,8 @@ data-raw/                   明文題庫，gitignore，不進 git
   cases_*.json              個案診斷題（每章一檔）
   duels.json                鑑別對決題
 scripts/build.py            驗證交叉引用 → 加密輸出 data/bank.enc
-gas/Code.gs                 雲端同步後端（Google Apps Script，一人一題一列）
+gas/Code.gs                 註冊／登入＋雲端同步後端（Google Apps Script）
+scripts/rekey.py            只換通關密語：用舊密語解開 bank.enc，再用新密語加密
 ```
 
 ## 重新產生題庫（改了 data-raw 之後）
@@ -38,6 +54,14 @@ python3 scripts/build.py --password <通關密語>
 ```
 
 `build.py` 會先驗證：答案、鑑別、排除項引用的診斷都存在；明細屬於該診斷且選項正確；準則核對的項目編號存在；每題鑑別候選 5–8 個。有問題就不輸出。密語若和現有的 `data/bank.enc` 不同也會中止（避免推出大家解不開的題庫）；真的要換密語時加 `--change-password`。
+
+## 更換通關密語
+
+```bash
+python3 scripts/rekey.py --old <舊密語> --new <新密語>
+```
+
+不需要 `data-raw/`。換完記得 commit `data/bank.enc`，並把 Google Sheet `settings` 的 `access_code` 改成同一個值，否則登入後會顯示「題庫解不開」。
 
 ## 本機預覽
 

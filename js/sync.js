@@ -1,12 +1,14 @@
-// Optional cloud sync through a Google Apps Script web app (see gas/Code.gs).
+// Accounts + cloud sync through a Google Apps Script web app (see gas/Code.gs).
 // Every record keeps an `at` timestamp; when local and cloud disagree, the newer one wins.
 // Pushes that fail (offline, quota) wait in a per-user queue and are retried later.
 
 const PsySync = (() => {
   let user = null;
+  let token = null;
   let state = "off";           // off | syncing | ok | offline
   let listeners = [];
   let lastTimer = null;
+  let onAuthLost = () => {};
 
   const url = () => (window.PsyConfig.SYNC_URL || "").trim();
   const enabled = () => !!url();
@@ -16,16 +18,28 @@ const PsySync = (() => {
   function readQueue() { try { return JSON.parse(localStorage.getItem(qKey()) || "[]"); } catch { return []; } }
   function writeQueue(q) { try { localStorage.setItem(qKey(), JSON.stringify(q)); } catch { /* storage blocked */ } }
 
-  async function call(action, payload) {
+  async function post(action, payload) {
     const res = await fetch(url(), {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids a CORS preflight on Apps Script
-      body: JSON.stringify({ action, payload: { user, ...payload } }),
+      body: JSON.stringify({ action, payload }),
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
+    return res.json();
+  }
+
+  // Signed-in call: a rejected token means the password changed elsewhere (or the account was removed).
+  async function call(action, payload) {
+    const data = await post(action, { user, token, ...payload });
+    if (!data.ok && data.error === "auth") { onAuthLost(); throw new Error("auth"); }
     if (!data.ok) throw new Error(data.error || "sync failed");
     return data;
+  }
+
+  // Account calls resolve to { ok, user, token, accessCode } or { ok: false, error }.
+  async function account(action, payload) {
+    try { return await post(action, payload); }
+    catch { return { ok: false, error: "連不上伺服器，請檢查網路後再試" }; }
   }
 
   async function flush() {
@@ -99,8 +113,9 @@ const PsySync = (() => {
     }
   }
 
-  function start(u) {
+  function start(u, t) {
     user = u;
+    token = t || null;
     setState(enabled() ? "syncing" : "off");
     window.addEventListener("online", flush);
     setInterval(() => { if (state === "offline") flush(); }, 60000);
@@ -108,6 +123,14 @@ const PsySync = (() => {
 
   return {
     start, pull, push, pushLast, flush, enabled,
+    register: (nickname, password, accessCode) => account("register", { nickname, password, accessCode }),
+    login: (nickname, password) => account("login", { nickname, password }),
+    async changePassword(oldPassword, newPassword) {
+      const data = await account("changePassword", { user, token, oldPassword, newPassword });
+      if (data.ok) token = data.token;
+      return data;
+    },
+    onAuthLost(fn) { onAuthLost = fn; },
     get state() { return state; },
     onChange(fn) { listeners.push(fn); },
   };
