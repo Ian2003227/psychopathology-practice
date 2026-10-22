@@ -65,23 +65,13 @@ button { font: inherit; }
 input, select { font: inherit; }
 :focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; }
 
-.mark {
-  display: inline-grid; place-items: center; flex: none;
-  width: 30px; height: 30px; border-radius: 8px;
-  background: var(--coral); color: #fff;
-  font-family: var(--serif); font-size: 18px; line-height: 1;
-}
-
 /* ---------- Landing / login ---------- */
 body.resuming #landing { visibility: hidden; }
 #landing { min-height: 100vh; display: flex; flex-direction: column; }
-.site-nav, .hero, .features, .source-band, .site-foot { width: 100%; max-width: 1200px; margin: 0 auto; padding-left: 32px; padding-right: 32px; }
-.site-nav { display: flex; align-items: center; justify-content: space-between; height: 72px; gap: 12px; }
+.hero, .features, .source-band, .site-foot { width: 100%; max-width: 1200px; margin: 0 auto; padding-left: 32px; padding-right: 32px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; letter-spacing: 0.02em; }
-.brand-sep { color: var(--muted); margin: 0 6px; }
-.nav-note { font-size: 13px; color: var(--muted); }
 
-.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 64px; align-items: center; padding-top: 48px; padding-bottom: 96px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 64px; align-items: center; padding-top: 96px; padding-bottom: 96px; }
 .eyebrow {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 12px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted);
@@ -141,17 +131,15 @@ body.resuming #landing { visibility: hidden; }
 
 .site-foot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding-top: 24px; padding-bottom: 32px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); max-width: calc(1200px - 64px); }
 .site-foot .brand { font-size: 13px; color: var(--ink); }
-.site-foot .mark { width: 22px; height: 22px; font-size: 13px; border-radius: 6px; }
 
 @media (max-width: 900px) {
-  .hero { grid-template-columns: 1fr; gap: 40px; padding-top: 16px; padding-bottom: 64px; }
+  .hero { grid-template-columns: 1fr; gap: 40px; padding-top: 48px; padding-bottom: 64px; }
   .features { grid-template-columns: 1fr; padding-bottom: 64px; }
   .source-band { grid-template-columns: 1fr; gap: 24px; padding: 32px; margin-left: 16px; margin-right: 16px; width: auto; }
 }
 @media (max-width: 600px) {
-  .site-nav, .hero, .features, .site-foot { padding-left: 16px; padding-right: 16px; }
+  .hero, .features, .site-foot { padding-left: 16px; padding-right: 16px; }
   .site-foot { margin-left: 16px; margin-right: 16px; width: auto; padding-left: 0; padding-right: 0; }
-  .nav-note { display: none; }
   .flow { display: none; }
   .lead { margin-bottom: 0; }
   .lead { font-size: 16px; }
@@ -166,7 +154,6 @@ header.topbar {
   position: sticky; top: 0; z-index: 10; flex-wrap: wrap; gap: 8px 16px;
 }
 header.topbar .title { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-weight: 500; font-size: 1.15rem; }
-header.topbar .title .mark { width: 26px; height: 26px; font-size: 16px; border-radius: 7px; }
 nav.tabs { display: flex; gap: 2px; flex-wrap: wrap; }
 nav.tabs button {
   background: transparent; border: none; color: var(--muted);
