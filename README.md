@@ -70,3 +70,7 @@ python3 -m http.server 8765
 ```
 
 然後開 http://localhost:8765 。
+
+## 改了 css/ 或 js/ 之後
+
+把 `index.html` 裡所有 `?v=20261022` 改成新的日期（例如 `?v=20261105`）。GitHub Pages 會讓瀏覽器快取舊檔，不換版本號的話，回訪的人會拿到新的 HTML 配舊的 CSS／JS，畫面跑版、登入失效。
